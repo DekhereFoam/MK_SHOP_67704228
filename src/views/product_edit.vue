@@ -16,12 +16,36 @@
       </div>
     </div>
 
+    <!-- 🏷️ ปุ่มกรองประเภทสินค้า -->
+    <div class="mb-3">
+      <label class="fw-bold mb-2">ประเภทสินค้า:</label>
+      <div class="d-flex flex-wrap gap-2">
+        <button 
+          class="btn btn-sm"
+          :class="typeFilter === '' ? 'btn-primary' : 'btn-outline-primary'"
+          @click="typeFilter = ''"
+        >
+          ทั้งหมด
+        </button>
+        <button 
+          v-for="type in productTypes" 
+          :key="type.id"
+          class="btn btn-sm"
+          :class="typeFilter === type.id ? 'btn-success' : 'btn-outline-success'"
+          @click="typeFilter = type.id"
+        >
+          {{ type.name }}
+        </button>
+      </div>
+    </div>
+
     <!-- ✅ ตารางสินค้า -->
     <table class="table table-bordered table-striped">
       <thead class="table-primary">
         <tr>
           <th>ID</th>
           <th>ชื่อสินค้า</th>
+          <th>ประเภท</th>
           <th>รายละเอียด</th>
           <th>ราคา</th>
           <th>จำนวน</th>
@@ -31,19 +55,23 @@
       </thead>
       <tbody>
         <tr v-for="product in paginatedProducts" :key="product.product_id">
-          <td>{{ product.product_id }}</td>
+          <td class="text-center">{{ product.product_id }}</td>
           <td>{{ product.product_name }}</td>
+          <td class="text-center">
+            <span class="badge bg-info">{{ getTypeName(product.type_id) }}</span>
+          </td>
           <td>{{ product.description }}</td>
-          <td>{{ product.price }}</td>
-          <td>{{ product.stock }}</td>
-          <td>
+          <td class="text-end">{{ product.price }}</td>
+          <td class="text-center">{{ product.stock }}</td>
+          <td class="text-center">
             <img
               v-if="product.image"
               :src="'http://localhost:8081/MK_SHOP/php_api/uploads/' + product.image"
-              width="100"
+              width="80"
+              class="rounded"
             />
           </td>
-          <td>
+          <td class="text-center">
             <button class="btn btn-warning btn-sm me-2" @click="openEditModal(product)">
               <i class="bi bi-pencil-square"></i> แก้ไข
             </button>
@@ -94,6 +122,17 @@
                 <label class="form-label">ชื่อสินค้า</label>
                 <input v-model="editForm.product_name" type="text" class="form-control" required />
               </div>
+
+              <div class="mb-3">
+                <label class="form-label">ประเภทสินค้า</label>
+                <select v-model="editForm.type_id" class="form-select" required>
+                  <option value="">-- เลือกประเภทสินค้า --</option>
+                  <option v-for="type in productTypes" :key="type.id" :value="type.id">
+                    {{ type.name }}
+                  </option>
+                </select>
+              </div>
+
               <div class="mb-3">
                 <label class="form-label">รายละเอียด</label>
                 <textarea v-model="editForm.description" class="form-control"></textarea>
@@ -142,12 +181,20 @@ export default {
   name: "ProductList",
   setup() {
     const products = ref([]);
+    const productTypes = ref([
+      { id: 1, name: 'อาหาร' },
+      { id: 2, name: 'เครื่องดื่ม' },
+      { id: 3, name: 'ของหวาน' },
+      { id: 4, name: 'ของทานเล่น' }
+    ]);
     const loading = ref(true);
     const error = ref(null);
     const isEditMode = ref(false);
+    const typeFilter = ref("");
     const editForm = ref({
       product_id: null,
       product_name: "",
+      type_id: "",
       description: "",
       price: "",
       stock: "",
@@ -158,15 +205,26 @@ export default {
 
     // ✅ Pagination
     const currentPage = ref(1);
-    const itemsPerPage = ref(5); // ค่าเริ่มต้น 5 แถวต่อหน้า
+    const itemsPerPage = ref(5);
+
+    const getTypeName = (typeId) => {
+      const type = productTypes.value.find(t => t.id === typeId);
+      return type ? type.name : 'ไม่ระบุ';
+    };
+
+    // กรองตามประเภท
+    const filteredProducts = computed(() => {
+      if (typeFilter.value === "") return products.value;
+      return products.value.filter(p => p.type_id === typeFilter.value);
+    });
 
     const totalPages = computed(() =>
-      Math.ceil(products.value.length / itemsPerPage.value)
+      Math.ceil(filteredProducts.value.length / itemsPerPage.value)
     );
 
     const paginatedProducts = computed(() => {
       const start = (currentPage.value - 1) * itemsPerPage.value;
-      return products.value.slice(start, start + itemsPerPage.value);
+      return filteredProducts.value.slice(start, start + itemsPerPage.value);
     });
 
     const goToPage = (page) => {
@@ -181,8 +239,8 @@ export default {
       if (currentPage.value > 1) currentPage.value--;
     };
 
-    // 🧩 รีเซ็ตหน้ากลับไปหน้า 1 เมื่อเปลี่ยนจำนวนแถวต่อหน้า
-    watch(itemsPerPage, () => {
+    // รีเซ็ตหน้ากลับไปหน้า 1
+    watch([itemsPerPage, typeFilter], () => {
       currentPage.value = 1;
     });
 
@@ -204,6 +262,7 @@ export default {
       editForm.value = {
         product_id: null,
         product_name: "",
+        type_id: "",
         description: "",
         price: "",
         stock: "",
@@ -235,6 +294,7 @@ export default {
       formData.append("action", isEditMode.value ? "update" : "add");
       if (isEditMode.value) formData.append("product_id", editForm.value.product_id);
       formData.append("product_name", editForm.value.product_name);
+      formData.append("type_id", editForm.value.type_id);
       formData.append("description", editForm.value.description);
       formData.append("price", editForm.value.price);
       formData.append("stock", editForm.value.stock);
@@ -286,17 +346,20 @@ export default {
 
     return {
       products,
+      productTypes,
       loading,
       error,
       editForm,
       isEditMode,
+      typeFilter,
+      getTypeName,
       openAddModal,
       openEditModal,
       handleFileUpload,
       saveProduct,
       deleteProduct,
 
-      // ✅ Pagination
+      // Pagination
       currentPage,
       totalPages,
       paginatedProducts,
@@ -308,3 +371,8 @@ export default {
   }
 };
 </script>
+
+<style scoped>
+.badge { font-size: 0.85rem; }
+.rounded { border-radius: 8px; }
+</style>

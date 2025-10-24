@@ -21,7 +21,7 @@
           <template v-if="isLoggedIn">  
             <li class="nav-item">
               <router-link class="nav-link" to="/orders">Orders</router-link>
-            </li>
+            </li> 
 
             <li class="nav-item">
               <router-link class="nav-link" to="/show_orders">Orders Detail</router-link>

@@ -11,9 +11,10 @@ try {
         o.order_date,
         p.product_id,
         p.product_name,
+        p.type_id,              -- ✅ เพิ่ม type_id จากตาราง products
         i.quantity,
         i.price,
-        i.status,              -- ✅ เพิ่มตรงนี้
+        i.status,
         (i.quantity * i.price) AS subtotal
     FROM orders o
     JOIN order_items i ON o.id = i.order_id
@@ -30,6 +31,7 @@ try {
         $order['total_price'] = (float)$order['total_price'];
         $order['price'] = (float)$order['price'];
         $order['subtotal'] = (float)$order['subtotal'];
+        $order['type_id'] = (int)$order['type_id']; // ✅ แปลง type_id เป็น integer
     }
 
     echo json_encode([

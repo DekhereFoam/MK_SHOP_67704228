@@ -13,9 +13,24 @@
       </select>
     </div>
 
+    <!-- ✨ ช่องเลือกประเภทอาหาร -->
+    <div class="mb-4 text-center">
+      <div class="btn-group" role="group">
+        <button
+          v-for="category in categories"
+          :key="category.value"
+          type="button"
+          :class="['btn', selectedCategory === category.value ? 'btn-success' : 'btn-outline-success']"
+          @click="selectedCategory = category.value"
+        >
+          {{ category.label }}
+        </button>
+      </div>
+    </div>
+
     <!-- แสดงสินค้า -->
     <div class="row">
-      <div class="col-md-3" v-for="product in products" :key="product.product_id">
+      <div class="col-md-3" v-for="product in filteredProducts" :key="product.product_id">
         <div class="card shadow-sm mb-4">
           <img
             :src="'http://localhost:8081/MK_SHOP/php_api/uploads/' + product.image"
@@ -109,9 +124,18 @@ export default {
     const products = ref([]); // เก็บข้อมูลสินค้า
     const cart = ref([]); // เก็บรายการในตะกร้า
     const selectedTable = ref(""); // โต๊ะที่เลือก
+    const selectedCategory = ref("all"); // ✨ ประเภทที่เลือก
     const tables = [1, 2, 3, 4, 5]; // ตัวเลือกโต๊ะ
     const loading = ref(true);
     const error = ref(null);
+
+    // ✨ ตัวเลือกประเภทอาหาร
+    const categories = [
+      { value: "all", label: "ทั้งหมด" },
+      { value: 1, label: "อาหาร" },
+      { value: 2, label: "เครื่องดื่ม" },
+      { value: 3, label: "ของหวาน" },
+    ];
 
     // ✅ ดึงข้อมูลสินค้า
     const fetchProducts = async () => {
@@ -131,6 +155,16 @@ export default {
         loading.value = false;
       }
     };
+
+    // ✨ กรองสินค้าตามประเภทที่เลือก
+    const filteredProducts = computed(() => {
+      if (selectedCategory.value === "all") {
+        return products.value;
+      }
+      return products.value.filter(
+        (product) => product.type_id === selectedCategory.value
+      );
+    });
 
     // ✅ เพิ่มสินค้าเข้าตะกร้า
     const addToCart = (product) => {
@@ -153,7 +187,6 @@ export default {
           product_name: product.product_name,
           price: parseFloat(product.price),
           quantity: 1,
-          
         });
       }
 
@@ -191,52 +224,50 @@ export default {
     );
 
     // ✅ ยืนยันการสั่งซื้อ
- // ✅ ยืนยันการสั่งซื้อ
-const submitOrder = async () => {
-  if (!selectedTable.value) {
-    alert("⚠️ กรุณาเลือกโต๊ะก่อนสั่งสินค้า");
-    return;
-  }
-
-  if (cart.value.length === 0) {
-    alert("⚠️ กรุณาเพิ่มสินค้าในตะกร้าก่อนสั่งซื้อ");
-    return;
-  }
-
-  const orderData = {
-    table_no: selectedTable.value,
-    items: cart.value.map((item) => ({
-      product_id: item.product_id,
-      product_name: item.product_name,
-      quantity: item.quantity,
-      price: item.price,
-    })),
-    total: totalPrice.value,
-  };
-
-  try {
-    const response = await fetch(
-      "http://localhost:8081/MK_SHOP/php_api/order.php",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(orderData),
+    const submitOrder = async () => {
+      if (!selectedTable.value) {
+        alert("⚠️ กรุณาเลือกโต๊ะก่อนสั่งสินค้า");
+        return;
       }
-    );
 
-    const result = await response.json();
+      if (cart.value.length === 0) {
+        alert("⚠️ กรุณาเพิ่มสินค้าในตะกร้าก่อนสั่งซื้อ");
+        return;
+      }
 
-    if (result.success) {
-      alert("✅ สั่งซื้อสำเร็จ!");
-      cart.value = []; // ล้างตะกร้า
-    } else {
-      alert("❌ " + result.message);
-    }
-  } catch (error) {
-    alert("เกิดข้อผิดพลาด: " + error.message);
-  }
-};
+      const orderData = {
+        table_no: selectedTable.value,
+        items: cart.value.map((item) => ({
+          product_id: item.product_id,
+          product_name: item.product_name,
+          quantity: item.quantity,
+          price: item.price,
+        })),
+        total: totalPrice.value,
+      };
 
+      try {
+        const response = await fetch(
+          "http://localhost:8081/MK_SHOP/php_api/order.php",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(orderData),
+          }
+        );
+
+        const result = await response.json();
+
+        if (result.success) {
+          alert("✅ สั่งซื้อสำเร็จ!");
+          cart.value = []; // ล้างตะกร้า
+        } else {
+          alert("❌ " + result.message);
+        }
+      } catch (error) {
+        alert("เกิดข้อผิดพลาด: " + error.message);
+      }
+    };
 
     // โหลดข้อมูลสินค้าทันทีเมื่อหน้าเริ่มต้น
     onMounted(fetchProducts);
@@ -245,6 +276,9 @@ const submitOrder = async () => {
       products,
       cart,
       selectedTable,
+      selectedCategory, // ✨
+      categories, // ✨
+      filteredProducts, // ✨
       tables,
       totalPrice,
       addToCart,
@@ -258,3 +292,10 @@ const submitOrder = async () => {
   },
 };
 </script>
+
+<style scoped>
+.btn-group .btn {
+  min-width: 120px;
+  font-weight: 500;
+}
+</style>
